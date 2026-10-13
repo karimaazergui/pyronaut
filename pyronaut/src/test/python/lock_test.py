@@ -133,7 +133,6 @@ class LockCommandTest(unittest.TestCase):
         manifest = {
             "javaHome": "/opt/graalvm",
             "repositories": ["mavenCentral"],
-            "images": {name: {"executable": f"/opt/{name}"} for name in cli._SETUP_IMAGE_COMMANDS},
         }
         descriptor = "maven\tcom.example\ttool\t1.0\tjar\t\ttool-1.0.jar"
         with patch.object(cli, "_setup_is_required", return_value=True), \
@@ -141,7 +140,7 @@ class LockCommandTest(unittest.TestCase):
                 patch.object(cli, "_bundled_executable", return_value="/opt/pyronaut-install"), \
                 patch.object(cli, "_is_executable_file", return_value=True), \
                 patch.object(cli, "_require_setup", return_value=True), \
-                patch.object(cli, "_native_compile_descriptor_entries", return_value=[descriptor]):
+                patch.object(cli, "_packaged_native_compile_descriptor_entries", return_value=[descriptor]):
             code, _, stderr = self._run([], self._runner())
 
         self.assertEqual(cli.SUCCESS, code, stderr)
