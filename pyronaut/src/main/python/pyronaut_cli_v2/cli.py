@@ -9477,8 +9477,7 @@ def _print_setup_usage(stream=None) -> None:
         stream = sys.stdout
     stream.write(
         "Usage: pyronaut setup [--local-repository <dir>] [--offline] [--refresh] [--locked] [--xdg] "
-        "[--native-launchers] [--progress <auto|on|off>] [--allow-draft-release]
-"
+        "[--native-launchers] [--progress <auto|on|off>] [--allow-draft-release]\n"
     )
     stream.write("Provision the global Pyronaut SDK toolchain, GraalPy interpreter, launchers, and native compiler classpaths.\n")
     stream.write("\nOptions:\n")
