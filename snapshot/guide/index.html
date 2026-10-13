@@ -165,9 +165,11 @@
         
         <div class="toc-item" style="margin-left:10px" id="toc-item-mavenRepositories"><a href="#mavenRepositories"><strong>9.9</strong><span>Configuring Maven Repositories</span></a></div>
         
-        <div class="toc-item" style="margin-left:10px" id="toc-item-proxyConfig"><a href="#proxyConfig"><strong>9.10</strong><span>Proxy Configuration</span></a></div>
+        <div class="toc-item" style="margin-left:10px" id="toc-item-dependencyLocking"><a href="#dependencyLocking"><strong>9.10</strong><span>Locking Maven Dependencies</span></a></div>
         
-        <div class="toc-item" style="margin-left:10px" id="toc-item-incrementalProcessing"><a href="#incrementalProcessing"><strong>9.11</strong><span>Incremental Processing</span></a></div>
+        <div class="toc-item" style="margin-left:10px" id="toc-item-proxyConfig"><a href="#proxyConfig"><strong>9.11</strong><span>Proxy Configuration</span></a></div>
+        
+        <div class="toc-item" style="margin-left:10px" id="toc-item-incrementalProcessing"><a href="#incrementalProcessing"><strong>9.12</strong><span>Incremental Processing</span></a></div>
         
         <div class="toc-item" style="margin-left:0px" id="toc-item-packaging"><a href="#packaging"><strong>10</strong><span>Packaging and Deployment</span></a></div>
         
@@ -5787,7 +5789,189 @@ By default, the install destination is also Maven local, so many local developme
 <p>Use <code>mavenLocal</code> when you published the dependency locally and no other configured repository provides it.</p>
 </div>
 
-<h2 id="proxyConfig"><a class="anchor" href="#proxyConfig"></a>9.10 Proxy Configuration</h2>
+<h2 id="dependencyLocking"><a class="anchor" href="#dependencyLocking"></a>9.10 Locking Maven Dependencies</h2>
+
+<div class='contribute-btn'>
+    <button type='button' class='btn btn-default' onclick='window.location.href="https://github.com/micronaut-projects/pyronaut/edit/0.1.x/src/main/docs/guide/configuration/dependencyLocking.adoc"'>
+        <i class='fa fa-pencil-square-o'></i> Improve this doc
+    </button>
+</div>
+
+
+<div class="paragraph">
+<p><code>pyronaut lock</code> writes <code>pyronaut.lock</code>, a list of every Maven artifact that <code>pyronaut setup</code>, <code>pyronaut install</code>, and <code>pyronaut build</code> resolve for the project, each with the repository it came from and its SHA-256 checksum.
+Commit the file next to <code>pyproject.toml</code> (and <code>uv.lock</code>, which covers the Python packages): dependency changes then show up as reviewable diffs, every later resolution is checked against the recorded checksums, and sandboxed builds (Nix, Bazel, Guix, air-gapped CI) can fetch each artifact individually by URL and checksum instead of letting Pyronaut download arbitrary artifacts.</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut lock</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Run it again whenever you change <code>[tool.pyronaut.dependencies]</code>, the repositories, the Micronaut versions, or update the SDK.
+<code>pyronaut lock --check</code> fails with exit code <code>8</code> when <code>pyronaut.lock</code> is missing or differs from what the current configuration resolves, which suits a CI step.</p>
+</div>
+<div class="sect1">
+<h2 id="_what_the_lock_covers">What the lock covers</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><code>pyronaut lock</code> resolves exactly what the other commands resolve and records each artifact Maven Resolver hands to Pyronaut:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>the SDK launcher classpaths that <code>pyronaut setup</code> resolves (the <code>pyronaut-dev</code>, <code>pyronaut-run</code>, and <code>pyronaut-run-python</code> compiler classpaths and the JVM tool runtime), when the installed SDK needs <code>pyronaut setup</code>;</p>
+</li>
+<li>
+<p>every <code>pyronaut install</code> scope: <code>build</code>, <code>runtime</code>, <code>development-runtime</code>, <code>test</code>, and <code>test-resources-server</code> (when Test Resources is enabled);</p>
+</li>
+<li>
+<p>the POM of every artifact, and every parent POM and BOM, because Maven needs them to compute the dependency graph.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p><code>pyronaut build</code> resolves its Maven dependencies through <code>pyronaut install</code>, so the same entries cover it.
+Source and Javadoc JARs, which <code>pyronaut install</code> only fetches for editor support, are not locked.</p>
+</div>
+<div class="paragraph">
+<p>The lock does not cover what Pyronaut downloads outside Maven: the GraalVM JDK, the GraalPy interpreter, and the native launchers that <code>pyronaut setup</code> provisions are already verified against published checksums, and Python packages belong in <code>uv.lock</code>.
+Maven and Gradle projects resolve their dependencies with their own build tool; use its dependency locking and checksum verification instead.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_file_format">File format</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><code>pyronaut.lock</code> is TOML, sorted by path so that diffs stay small:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml"># This file is generated by `pyronaut lock`. Do not edit it by hand.
+version = 1
+
+[[artifact]]
+coordinates = "io.micronaut:micronaut-core:jar:4.10.7"
+path = "io/micronaut/micronaut-core/4.10.7/micronaut-core-4.10.7.jar"
+repository = "https://repo1.maven.org/maven2/"
+url = "https://repo1.maven.org/maven2/io/micronaut/micronaut-core/4.10.7/micronaut-core-4.10.7.jar"
+sha256 = "..."</code></pre>
+</div>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p><code>coordinates</code>: <code>group:artifact:extension[:classifier]:version</code>.</p>
+</li>
+<li>
+<p><code>path</code>: the location in the standard Maven repository layout.</p>
+</li>
+<li>
+<p><code>repository</code>: the repository the artifact was resolved from, or one of two markers for an artifact that has no remote origin:</p>
+<div class="ulist">
+<ul>
+<li>
+<p><code>bundled</code>: an <code>io.micronaut.pyronaut</code> module that Pyronaut seeds into the local repository from the SDK wheel. These modules ship with the SDK and are not necessarily published to any Maven repository.</p>
+</li>
+<li>
+<p><code>local</code>: any other artifact found in the local repository without a record of where it came from, for example one copied there by hand.</p>
+</li>
+</ul>
+</div>
+</li>
+<li>
+<p><code>url</code>: <code>repository</code> followed by <code>path</code>. Entries marked <code>bundled</code> or <code>local</code> have no <code>url</code>.</p>
+</li>
+<li>
+<p><code>sha256</code>: the checksum of the artifact.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>Artifacts resolved from <code>mavenLocal</code> or a file repository keep their <code>file:</code> URL; such a lock is only portable when those repositories are available to the build too.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_checksum_verification">Checksum verification</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>When <code>pyronaut.lock</code> exists, every Maven artifact that Pyronaut resolves and the lock lists must match its recorded checksum, whether the artifact was downloaded or already cached in the local repository.
+A mismatch fails the command and names the artifact, both checksums, and the file:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre>Dependency lock verification failed (/work/app/pyronaut.lock):
+  - com.example:lib:jar:1.2 does not match pyronaut.lock: expected sha256 3f1a... but /home/me/.m2/repository/com/example/lib/1.2/lib-1.2.jar has 9b02...</pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Artifacts the lock does not list are accepted, so a lock that is out of date after a dependency change does not break <code>pyronaut install</code>; run <code>pyronaut lock</code> to update it.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_locked_resolution">Locked resolution</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><code>pyronaut install --locked</code> (or <code>PYRONAUT_LOCKED=true</code> for any command, including <code>pyronaut build</code>, <code>pyronaut dev</code>, and <code>pyronaut test</code>, which install dependencies on demand) also fails on every artifact the lock does not list.
+<code>pyronaut setup --locked</code>, run in the project directory, does the same for the SDK launcher classpaths and resolves them again even when setup is already complete.
+Locked resolution requires <code>pyronaut.lock</code>; without it the command fails and asks you to run <code>pyronaut lock</code>.</p>
+</div>
+<div class="paragraph">
+<p>To resolve only the locked artifacts, without any repository access, point Pyronaut at a directory that contains them in Maven repository layout, at each entry&#8217;s <code>path</code>:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">PYRONAUT_LOCK_REPOSITORY=/path/to/locked-artifacts pyronaut install --offline</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>--lock-repository &lt;dir&gt;</code> is the equivalent <code>pyronaut install</code> option. A lock repository implies <code>--locked</code>: it replaces every configured repository (including <code>mavenCentral</code>, <code>mavenLocal</code>, and the Sonatype snapshot repository), works when the command runs <code>--offline</code>, and the checksum of every artifact taken from it is verified against the lock.
+An artifact missing from the lock repository fails resolution and names the missing coordinates.</p>
+</div>
+<div class="paragraph">
+<p>A sandboxed build fetches every <code>url</code> with its <code>sha256</code>, places each file at its <code>path</code>, and passes the resulting directory as the lock repository.
+Entries without a <code>url</code> are skipped: locked resolution takes them from the local repository instead (<code>pyronaut setup</code> and <code>pyronaut install</code> seed the <code>bundled</code> ones there from the installed SDK) and still verifies their checksums against the lock.
+Running <code>pyronaut lock</code> against a clean local repository records a download URL for every artifact that is not bundled.
+With Nix, for example:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-nix hljs" data-lang="nix">let
+  lock = builtins.fromTOML (builtins.readFile ./pyronaut.lock);
+  lockRepository = pkgs.linkFarm "pyronaut-maven-repository" (map (artifact: {
+    name = artifact.path;
+    path = pkgs.fetchurl { inherit (artifact) url sha256; };
+  }) (builtins.filter (artifact: artifact ? url) lock.artifact));
+in
+# ... then, in the build: PYRONAUT_LOCK_REPOSITORY=${lockRepository} pyronaut install --offline</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>The lock file location defaults to <code>pyronaut.lock</code> in the project directory; set <code>PYRONAUT_LOCK_FILE</code> (or <code>--lock-file &lt;file&gt;</code> on <code>pyronaut install</code>) to use another file.</p>
+</div>
+<div class="paragraph">
+<p>Locking has these limitations:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>SNAPSHOT dependencies are recorded with the timestamped version they resolved to, but a lock repository cannot serve them because it holds no <code>maven-metadata.xml</code>. Lock only released versions for reproducible builds.</p>
+</li>
+<li>
+<p>Version ranges need repository metadata as well, and fail in a lock repository.</p>
+</li>
+<li>
+<p>Direct-source projects (<code>pyronaut install App.java</code>) and Maven or Gradle projects cannot be locked.</p>
+</li>
+</ul>
+</div>
+</div>
+</div>
+
+<h2 id="proxyConfig"><a class="anchor" href="#proxyConfig"></a>9.11 Proxy Configuration</h2>
 
 <div class='contribute-btn'>
     <button type='button' class='btn btn-default' onclick='window.location.href="https://github.com/micronaut-projects/pyronaut/edit/0.1.x/src/main/docs/guide/configuration/proxyConfig.adoc"'>
@@ -5911,7 +6095,7 @@ independent of the <code>[proxy]</code> table.</p>
 </div>
 </div>
 
-<h2 id="incrementalProcessing"><a class="anchor" href="#incrementalProcessing"></a>9.11 Incremental Processing</h2>
+<h2 id="incrementalProcessing"><a class="anchor" href="#incrementalProcessing"></a>9.12 Incremental Processing</h2>
 
 <div class='contribute-btn'>
     <button type='button' class='btn btn-default' onclick='window.location.href="https://github.com/micronaut-projects/pyronaut/edit/0.1.x/src/main/docs/guide/configuration/incrementalProcessing.adoc"'>
@@ -8042,7 +8226,7 @@ additional-test-resources = ["tests-fixtures"]</code></pre>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut setup [--local-repository &lt;dir&gt;] [--offline] [--refresh] [--native-launchers] [--progress &lt;auto|on|off&gt;]</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut setup [--local-repository &lt;dir&gt;] [--offline] [--refresh] [--locked] [--native-launchers] [--progress &lt;auto|on|off&gt;]</code></pre>
 </div>
 </div>
 <div class="paragraph">
@@ -8070,6 +8254,7 @@ repositories = ["mavenCentral", "https://repo.example.com/snapshots/"]</code></p
 <div class="paragraph">
 <p><code>--refresh</code> re-resolves and rewrites setup state while reusing healthy downloaded JDK, GraalPy, and native images.
 <code>--offline</code> performs no JDK, GraalPy, native-image, or Maven downloads and therefore succeeds only when every required component is already cached; with <code>--native-launchers</code>, that includes the native launchers.
+<code>--locked</code> resolves the SDK launcher classpaths again and requires every Maven artifact to be listed, with a matching checksum, in the <code>pyronaut.lock</code> of the current directory; see <a href="#dependencyLocking">Locking Maven Dependencies</a>.
 When setup is missing, corrupt, or stale, execution commands exit with code <code>8</code> and print <code>Pyronaut setup is missing or stale. Run pyronaut setup.</code></p>
 </div>
 </div>
@@ -8380,7 +8565,19 @@ manage-dependencies = false</code></pre>
 <li>
 <p><code>--offline</code>: resolve using offline repository mode</p>
 </li>
+<li>
+<p><code>--locked</code>: require every resolved Maven artifact to be listed in <code>pyronaut.lock</code> with a matching checksum (also <code>PYRONAUT_LOCKED=true</code>)</p>
+</li>
+<li>
+<p><code>--lock-repository &lt;dir&gt;</code>: resolve only from this directory of locked artifacts in Maven repository layout; implies <code>--locked</code> (also <code>PYRONAUT_LOCK_REPOSITORY</code>)</p>
+</li>
+<li>
+<p><code>--lock-file &lt;file&gt;</code>: the lock file to verify against (default <code>pyronaut.lock</code> in the project directory, or <code>PYRONAUT_LOCK_FILE</code>)</p>
+</li>
 </ul>
+</div>
+<div class="paragraph">
+<p>When <code>pyronaut.lock</code> exists, every resolved artifact it lists must match its recorded checksum; see <a href="#dependencyLocking">Locking Maven Dependencies</a>.</p>
 </div>
 <div class="paragraph">
 <p>When several scopes are selected, their Maven resolutions run in parallel. On an interactive terminal,
@@ -8596,6 +8793,22 @@ Build-wheel and Docker packaging copy those artifacts into the packaged applicat
 </li>
 </ul>
 </div>
+</div>
+</div>
+<div class="sect2">
+<h3 id="_pyronaut_lock"><code>pyronaut lock</code></h3>
+<div class="paragraph">
+<p>Records every Maven artifact that <code>pyronaut setup</code>, <code>pyronaut install</code>, and <code>pyronaut build</code> resolve for the project into <code>pyronaut.lock</code>, with its repository URL and SHA-256 checksum:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut lock [--project-dir &lt;dir&gt;] [--local-repository &lt;dir&gt;] [--offline] [--check] [--progress &lt;auto|on|off&gt;]</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p><code>pyronaut.lock</code> is replaced only when every artifact resolved. <code>--check</code> writes nothing and exits with code <code>8</code> when <code>pyronaut.lock</code> is missing or out of date.
+<code>--offline</code> records from the local repository without downloading.
+See <a href="#dependencyLocking">Locking Maven Dependencies</a> for the file format, checksum verification, and locked resolution.</p>
 </div>
 </div>
 <div class="sect2">
@@ -9974,6 +10187,15 @@ ASCII set for the Java tools.</p>
 <ul>
 <li>
 <p><code>PYRONAUT_TRACE_DELEGATION=true</code>: prints delegated command lines.</p>
+</li>
+<li>
+<p><code>PYRONAUT_LOCKED=true</code>: requires every resolved Maven artifact to be listed in <code>pyronaut.lock</code>, for every command that installs dependencies; see <a href="#dependencyLocking">Locking Maven Dependencies</a>.</p>
+</li>
+<li>
+<p><code>PYRONAUT_LOCK_REPOSITORY=&lt;dir&gt;</code>: resolves Maven artifacts only from this directory of locked artifacts; implies <code>PYRONAUT_LOCKED</code>.</p>
+</li>
+<li>
+<p><code>PYRONAUT_LOCK_FILE=&lt;file&gt;</code>: uses this lock file instead of <code>pyronaut.lock</code> in the project directory.</p>
 </li>
 <li>
 <p><code>PYRONAUT_TEST_RESOURCES_DISABLED=true</code>: disables automatic test-resources orchestration for <code>dev</code> and <code>test</code>.</p>
