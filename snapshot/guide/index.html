@@ -229,7 +229,7 @@ Micronaut application model.</p>
 <p>Start with <a href="#installation">Installing Pyronaut</a>.</p>
 </li>
 <li>
-<p>Follow <a href="#project">Create a Pyronaut Project</a> to build a project in project mode; complete Step 1 before running pytest. Alternatively, follow <a href="#fastApiTutorial">The FastAPI Tutorial</a> to try direct-source mode without a project virtual environment.</p>
+<p>Follow <a href="#project">Create a Pyronaut Project</a> to build a project in project mode; complete <a href="#project-installation">Step 3: Install project dependencies</a> before running pytest. Alternatively, follow <a href="#fastApiTutorial">The FastAPI Tutorial</a> to try direct-source mode without a project virtual environment.</p>
 </li>
 <li>
 <p>After the tutorial, read <a href="#concepts">Micronaut Concepts for Python Developers</a>. The remaining chapters assume you
@@ -443,8 +443,8 @@ pyronaut --version</code></pre>
 <p>The Python installation used by <code>pip</code> only installs the CLI. Pyronaut applications run with the embedded GraalPy
 runtime supplied by the Pyronaut SDK, and <code>pyronaut setup</code> provisions the matching GraalPy interpreter for project
 virtual environments. <code>pyronaut --version</code> shows the required version on the <code>GraalPy Interpreter</code> line.
-If your application or tests use Python packages, see <a href="#prerequisites">Getting Started Step 1</a> for the project
-environment setup.</p>
+If your application or tests use Python packages, see <a href="#project-installation">Getting Started Step 3: Install project dependencies</a>
+for the project environment setup.</p>
 </div>
 </div>
 </div>
@@ -769,20 +769,56 @@ pyronaut --version</code></pre>
 <p>If <a href="https://github.com/pyenv/pyenv#installation">pyenv</a> is installed, setup installs GraalPy with pyenv; otherwise it
 downloads GraalPy into <code>~/.pyronaut/sdks</code>.</p>
 </div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_step_2_create_the_project">Step 2: Create the project</h2>
+<div class="sectionbody">
 <div class="paragraph">
-<p>Change to your project directory and install the project:</p>
+<p>From the directory where you want the project created, run:</p>
 </div>
 <div class="listingblock">
 <div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">cd &lt;project-dir&gt;
-pyronaut install</code></pre>
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut create hello-pyronaut
+cd hello-pyronaut</code></pre>
 </div>
 </div>
 <div class="paragraph">
-<p><code>pyronaut install</code> creates a GraalPy virtual environment in <code>.venv</code> and uses <code>pip</code> to install the Python dependencies
-declared in <code>pyproject.toml</code> or <code>requirements.txt</code>, plus <code>pytest</code> when the project has Python tests. Pyronaut uses this
-environment for application and test launches. A CPython-created environment cannot provide packages to the embedded
-GraalPy runtime.</p>
+<p>Add <code>--features data-jdbc,mysql</code> to the <code>pyronaut create</code> command when you need those Micronaut features.
+The generated project includes <code>src/main.py</code> for logging setup, <code>tests/test_application.py</code> as a starter test, and
+<code>config/application.toml</code> for application settings. The following steps add an HTTP route, configure its port, and
+replace the starter test.</p>
+</div>
+<div class="paragraph">
+<p>The following optional subsection briefly explains the project configuration. Skip it to continue with the generated
+files.</p>
+</div>
+<div class="sect2">
+<h3 id="_review_the_project_configuration_optional">Review the project configuration (optional)</h3>
+<div class="paragraph">
+<p><code>pyproject.toml</code> is the standard Python project file. The generated file contains Python project metadata and Pyronaut
+settings, including Java dependencies by scope. Keep it as generated for this tutorial. To change project settings, see
+<a href="#pyproject">Configuring pyproject.toml</a> and <a href="#dependencies">Installing Python and Java Dependencies</a>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="project-installation">Step 3: Install project dependencies</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Run <code>pyronaut install</code> after creating the project and whenever you change its dependencies:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut install</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>This command creates a GraalPy virtual environment in <code>.venv</code> and installs the Python dependencies declared in
+<code>pyproject.toml</code> or <code>requirements.txt</code>, plus <code>pytest</code> when the project has Python tests. Pyronaut uses this environment
+for application and test launches. It also resolves the Java dependencies declared in <code>pyproject.toml</code>. A CPython-created
+environment cannot provide packages to the embedded GraalPy runtime.</p>
 </div>
 <div class="paragraph">
 <p>See <a href="#usingPackagesJavaLibraries">Using Python Packages and Java Libraries</a> for Python package compatibility and Java
@@ -791,85 +827,14 @@ library guidance.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_step_2_create_the_project">Step 2: Create the project</h2>
+<h2 id="_step_4_add_an_http_route">Step 4: Add an HTTP route</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Use <code>pyronaut create demo</code> to generate the project. Add
-<code>--features data-jdbc,mysql</code> when you need those Micronaut features.
-The generated project includes the configuration, source, and test layout
-used by the remaining steps.</p>
+<p>An HTTP route maps an HTTP method and path to a Python function. This example declares a module-level route function; it
+does not define a controller class annotated with <code>@Controller</code>.</p>
 </div>
 <div class="paragraph">
-<p>The following subsection shows the key generated files for readers who want
-to understand or customize the project manually.</p>
-</div>
-<div class="sect2">
-<h3 id="_manual_project_configuration">Manual project configuration</h3>
-<div class="paragraph">
-<p><code>pyproject.toml</code> is the standard Python project file. Pyronaut reads its own settings from the <code>[tool.pyronaut]</code> tables
-and uses the standard <code>[project]</code> and <code>[build-system]</code> tables for Python packaging.</p>
-</div>
-<div class="paragraph">
-<p>Create <code>pyproject.toml</code>:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-toml hljs" data-lang="toml">[project] <i class="conum" data-value="1"></i><b>(1)</b>
-name = "hello-pyronaut"
-version = "0.1.0"
-dynamic = ["scripts"]
-
-[build-system]
-requires = ["setuptools", "wheel", "tomli"]
-build-backend = "setuptools.build_meta"
-
-[tool.pyronaut]
-repositories = ["mavenCentral"] <i class="conum" data-value="2"></i><b>(2)</b>
-
-[tool.pyronaut.dependencies] <i class="conum" data-value="3"></i><b>(3)</b>
-runtime = []
-build = []
-test = [
-  "io.micronaut.pyronaut:micronaut-pyronaut-pytest",
-  "io.micronaut.pyronaut:micronaut-pyronaut-requests"
-]</code></pre>
-</div>
-</div>
-<div class="colist arabic">
-<table>
-<tr>
-<td><i class="conum" data-value="1"></i><b>1</b></td>
-<td>The project name and version are also used when packaging the application.</td>
-</tr>
-<tr>
-<td><i class="conum" data-value="2"></i><b>2</b></td>
-<td>The <code>repositories</code> setting tells Pyronaut where to resolve Java libraries. <code>mavenCentral</code> is the default Java-library repository, roughly equivalent to PyPI for Python packages.</td>
-</tr>
-<tr>
-<td><i class="conum" data-value="3"></i><b>3</b></td>
-<td>Declare Java dependencies by scope. Pyronaut makes <code>runtime</code> dependencies available to application code, uses <code>build</code>
-dependencies while it processes sources, and makes <code>test</code> dependencies available when tests run. This example leaves
-<code>runtime</code> empty because the Pyronaut launcher already includes Micronaut&#8217;s HTTP server, serialization, and validation
-support. See <a href="#how">How Pyronaut Works</a> for details.</td>
-</tr>
-</table>
-</div>
-<div class="paragraph">
-<p>For dependency syntax, Python packages, and additional Java dependency options, see
-<a href="#dependencies">Installing Python and Java Dependencies</a>.</p>
-</div>
-</div>
-</div>
-</div>
-<div class="sect1">
-<h2 id="_step_3_add_an_http_route">Step 3: Add an HTTP route</h2>
-<div class="sectionbody">
-<div class="paragraph">
-<p>An HTTP route maps an HTTP method and path to a Python function. Although the example uses <code>controllers.py</code> as its filename, the
-example does not define a controller class annotated with <code>@Controller</code>; it defines a module-level route function.</p>
-</div>
-<div class="paragraph">
-<p>Create <code>src/controllers.py</code>:</p>
+<p><code>src/main.py</code> configures logging. Leave it in place and create <code>src/hello_pyronaut/controllers.py</code> with:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -888,10 +853,10 @@ prefix or need injected services. See <a href="#httpApis">Building HTTP APIs</a>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_step_4_add_application_configuration">Step 4: Add application configuration</h2>
+<h2 id="_step_5_add_application_configuration">Step 5: Add application configuration</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Create <code>config/application.toml</code>:</p>
+<p>Add the server port to the generated <code>config/application.toml</code>:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -910,18 +875,10 @@ those settings from Python.</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_step_5_run_the_application">Step 5: Run the application</h2>
+<h2 id="_step_6_run_the_application">Step 6: Run the application</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>If you installed or upgraded Pyronaut, provision the SDK before starting the application:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut setup</code></pre>
-</div>
-</div>
-<div class="paragraph">
-<p>Then start the development server:</p>
+<p>Start the development server:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -945,15 +902,8 @@ those settings from Python.</p>
 </ul>
 </div>
 <div class="paragraph">
-<p>Run
-<code>pyronaut install</code> and <code>pyronaut process</code> separately when you change dependencies or want to inspect processing errors
-without starting the server:</p>
-</div>
-<div class="listingblock">
-<div class="content">
-<pre class="highlightjs highlight"><code class="language-bash hljs" data-lang="bash">pyronaut install
-pyronaut process</code></pre>
-</div>
+<p>After changing dependencies, rerun <code>pyronaut install</code>. To inspect processing errors without starting the server, run
+<code>pyronaut process</code>.</p>
 </div>
 <div class="paragraph">
 <p>Verify the route:</p>
@@ -969,10 +919,10 @@ pyronaut process</code></pre>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_step_6_add_and_run_a_test">Step 6: Add and run a test</h2>
+<h2 id="_step_7_add_and_run_a_test">Step 7: Add and run a test</h2>
 <div class="sectionbody">
 <div class="paragraph">
-<p>Create <code>tests/test_controller.py</code>:</p>
+<p>Replace the generated <code>tests/test_application.py</code> file with:</p>
 </div>
 <div class="listingblock">
 <div class="content">
@@ -1075,7 +1025,7 @@ runtime and JUnit 5 integration, so it does not require a project virtual enviro
 </div>
 </div>
 <div class="sect1">
-<h2 id="_create_the_application">Create the application</h2>
+<h2 id="_step_1_create_the_application">Step 1: Create the application</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Create an empty project directory, change into it, and create <code>main.py</code>:</p>
@@ -1102,7 +1052,7 @@ validate the path value as an integer. Because <code>q</code> defaults to <code>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_start_the_development_server">Start the development server</h2>
+<h2 id="_step_2_start_the_development_server">Step 2: Start the development server</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Run the development server from the directory containing <code>main.py</code>:</p>
@@ -1120,7 +1070,7 @@ The server listens on <code><a href="http://localhost:8080" class="bare">http://
 </div>
 </div>
 <div class="sect1">
-<h2 id="_verify_the_routes">Verify the routes</h2>
+<h2 id="_step_3_verify_the_routes">Step 3: Verify the routes</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Verify the root route:</p>
@@ -1192,7 +1142,7 @@ The server listens on <code><a href="http://localhost:8080" class="bare">http://
 </div>
 </div>
 <div class="sect1">
-<h2 id="_explore_the_api_documentation">Explore the API documentation</h2>
+<h2 id="_step_4_explore_the_api_documentation">Step 4: Explore the API documentation</h2>
 <div class="sectionbody">
 <div class="ulist">
 <ul>
@@ -1210,7 +1160,7 @@ The server listens on <code><a href="http://localhost:8080" class="bare">http://
 </div>
 </div>
 <div class="sect1">
-<h2 id="_add_a_request_body">Add a request body</h2>
+<h2 id="_step_5_add_a_request_body">Step 5: Add a request body</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Replace <code>main.py</code> with the following version to accept an <code>Item</code> request body:</p>
@@ -1298,7 +1248,7 @@ invalid body:</p>
 </div>
 </div>
 <div class="sect1">
-<h2 id="_test_the_application">Test the application</h2>
+<h2 id="_step_6_test_the_application">Step 6: Test the application</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Create <code>test_main.py</code> next to <code>main.py</code>:</p>
@@ -1378,7 +1328,7 @@ module-level attributes. The development server does not need to run separately.
 </div>
 </div>
 <div class="sect1">
-<h2 id="_run_the_application">Run the application</h2>
+<h2 id="_step_7_run_the_application">Step 7: Run the application</h2>
 <div class="sectionbody">
 <div class="paragraph">
 <p>Run the same source file with <code>pyronaut run</code>:</p>
