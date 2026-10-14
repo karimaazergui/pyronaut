@@ -4333,6 +4333,84 @@ Define the class at module level, or pass a function or lambda where Java expect
 </div>
 </div>
 </div>
+<div class="sect1">
+<h2 id="javaExceptions">Handle exceptions thrown by Java code</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>A Java exception thrown by a Java call, such as an <code>IOException</code> from an HTTP client or a <code>NumberFormatException</code> from <code>Integer.parseInt</code>, is raised into Python as the Java exception object itself.
+Pyronaut makes every <code>java.lang.Exception</code>, checked or unchecked, an instance of the Python <code>Exception</code> class, so idiomatic Python error handling catches it:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from java.lang import Integer
+
+
+def parse_port(value: str) -&gt; int:
+    try:
+        return Integer.parseInt(value)
+    except Exception as e:
+        # e is the java.lang.NumberFormatException: e.getMessage(), str(e) and e.__cause__ chaining all work
+        raise ValueError(f"invalid port: {value}") from e</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>To catch a specific Java exception, import its Java type and name it in the <code>except</code> clause. The exception keeps its Java members:</p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">from java.io import IOException
+from java.nio.file import Files, Path
+
+
+def read_settings(location: str) -&gt; str:
+    try:
+        return Files.readString(Path.of(location))
+    except IOException as e:
+        return f"unavailable: {e.getMessage()}"</code></pre>
+</div>
+</div>
+<div class="paragraph">
+<p>Keep the following in mind:</p>
+</div>
+<div class="ulist">
+<ul>
+<li>
+<p>A Java exception is not mapped to a specific Python exception class. A <code>NumberFormatException</code> is an <code>Exception</code>, but not a <code>ValueError</code>. Catch it as <code>Exception</code> or by its Java type.</p>
+</li>
+<li>
+<p>A <code>java.lang.Error</code>, such as <code>OutOfMemoryError</code>, <code>StackOverflowError</code>, or <code>AssertionError</code>, is not an <code>Exception</code>. Like <code>KeyboardInterrupt</code> and <code>SystemExit</code>, it is only a <code>BaseException</code>, so <code>except Exception</code> does not swallow it.</p>
+</li>
+<li>
+<p>A Java exception that Python code does not catch, or re-raises with <code>raise</code>, reaches the calling Java code as the original Java exception, so Micronaut error handling sees the Java exception type.</p>
+</li>
+</ul>
+</div>
+<div class="admonitionblock note">
+<table>
+<tr>
+<td class="icon">
+<i class="fa icon-note" title="Note"></i>
+</td>
+<td class="content">
+Java exceptions are Python <code>Exception</code> instances with Micronaut Core 5.2.16 and later.
+With earlier versions, GraalPy makes a Java exception a <code>BaseException</code> only, and <code>except Exception</code> does not catch it.
+On those versions, an error boundary that must also catch Java exceptions has to catch <code>BaseException</code> and re-raise the exceptions that signal interpreter shutdown or generator cleanup:
+</td>
+</tr>
+</table>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlightjs highlight"><code class="language-python hljs" data-lang="python">try:
+    do_work()
+except BaseException as e:
+    if isinstance(e, (KeyboardInterrupt, SystemExit, GeneratorExit)):
+        raise
+    report_failure(e)</code></pre>
+</div>
+</div>
+</div>
+</div>
 
 <h1 id="configuration"><a class="anchor" href="#configuration"></a>9 Configure a Pyronaut Project</h1>
 
